@@ -10,6 +10,7 @@ router.get('/', (req, res, next) => {
 router.post('/chat', async (req, res, next) => {
 
     const slackEvent = req.body;
+    if (req.headers['x-slack-retry-num']) return res.status(200).send('OK');
 
     if ('challenge' in slackEvent) {
         return res.status(200).json({challenge: slackEvent.challenge});
@@ -27,8 +28,8 @@ router.post('/chat', async (req, res, next) => {
 
 const eventHandler = async (eventType, slackEvent) => {
 
-    // const stringSlackEvent = JSON.stringify(slackEvent);
-    const channel = slackEvent.event.channel;
+    const channel = slackEvent.event.channel;   // Channel
+    const thread_ts = slackEvent.event.ts;      // Thread
     const client = new WebClient(process.env.SLACK_TOKEN);
 
     try {
@@ -37,7 +38,7 @@ const eventHandler = async (eventType, slackEvent) => {
             const answer = await openAi(userQuery);
 
             await client.chat.postMessage({
-                channel: channel, text: answer,
+                channel: channel, text: answer, thread_ts: thread_ts
             });
             return 'ok';
         }
@@ -56,7 +57,7 @@ const openAi = async (query) => {
         const content = await axios.post('https://api.openai.com/v1/chat/completions', {
             model: 'gpt-3.5-turbo', messages: [{role: 'user', content: query}], temperature: 0.7
         }, {
-            timeout: 60, headers: {
+            headers: {
                 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.OPENAI_TOKEN}`
             },
         });
