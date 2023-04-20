@@ -10,6 +10,7 @@ router.get('/', (req, res, next) => {
 router.post('/chat', async (req, res, next) => {
 
     const slackEvent = req.body;
+
     if (req.headers['x-slack-retry-num']) return res.status(200).send('OK');
 
     if ('challenge' in slackEvent) {
@@ -28,17 +29,34 @@ router.post('/chat', async (req, res, next) => {
 
 const eventHandler = async (eventType, slackEvent) => {
 
-    const channel = slackEvent.event.channel;   // Channel
-    const thread_ts = slackEvent.event.ts;      // Thread
     const client = new WebClient(process.env.SLACK_TOKEN);
+
+    const channel = slackEvent.event.channel;
+    const thread_ts = slackEvent.event.thread_ts;
+    const ts = slackEvent.event.ts;
 
     try {
         if (eventType === 'app_mention') {
-            const userQuery = slackEvent.event.blocks[0].elements[0].elements[1].text;
-            const answer = await openAi(userQuery);
+
+            const threadReplies = await client.conversations.replies({
+                channel: channel,
+                ts: thread_ts ?? ts,
+            });
+
+            let output = [];
+            if (threadReplies.length !== 0) {
+                output = threadReplies.messages.map(message => {
+                    const role = message.bot_id ? 'assistant' : 'user';
+                    const content = message.text.replace(/<@.*?>/g, '');
+                    return {role, content};
+                });
+            }
+
+            // const userQuery = slackEvent.event.blocks[0].elements[0].elements[1].text;
+            const answer = await openAi(output);
 
             await client.chat.postMessage({
-                channel: channel, text: answer, thread_ts: thread_ts
+                channel: channel, text: answer, thread_ts: ts
             });
             return 'ok';
         }
@@ -55,7 +73,7 @@ const openAi = async (query) => {
     try {
         // OPENAI 통신
         const content = await axios.post('https://api.openai.com/v1/chat/completions', {
-            model: 'gpt-3.5-turbo', messages: [{role: 'user', content: query}], temperature: 0.7
+            model: 'gpt-3.5-turbo', messages: query, temperature: 0.8
         }, {
             headers: {
                 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.OPENAI_TOKEN}`
