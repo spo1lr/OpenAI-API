@@ -11,7 +11,7 @@ router.post('/chat', async (req, res, next) => {
 
     const slackEvent = req.body;
 
-    if (req.headers['x-slack-retry-num']) return res.status(200).send('OK');
+    if (req.headers['x-slack-retry-num'] || slackEvent.event.bot_id) return res.status(200).send('OK');
 
     if ('challenge' in slackEvent) {
         return res.status(200).json({challenge: slackEvent.challenge});
@@ -29,14 +29,17 @@ router.post('/chat', async (req, res, next) => {
 
 const eventHandler = async (eventType, slackEvent) => {
 
-    const client = new WebClient(process.env.SLACK_TOKEN);
+    const client = new WebClient(process.env.SLACK_TOKEN, {
+        retryConfig: {retries: 0}
+    });
 
     const channel = slackEvent.event.channel;
+    const channelType = slackEvent.event.channel_type;
     const thread_ts = slackEvent.event.thread_ts;
     const ts = slackEvent.event.ts;
 
     try {
-        if (eventType === 'app_mention') {
+        if (eventType === 'app_mention' || (eventType === 'message' && channelType === 'im')) {
 
             const threadReplies = await client.conversations.replies({
                 channel: channel,
@@ -73,7 +76,7 @@ const openAi = async (query) => {
     try {
         // OPENAI 통신
         const content = await axios.post('https://api.openai.com/v1/chat/completions', {
-            model: 'gpt-3.5-turbo', messages: query, temperature: 0.8
+            model: 'gpt-3.5-turbo-0301', messages: query, temperature: 1
         }, {
             headers: {
                 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.OPENAI_TOKEN}`
