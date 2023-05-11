@@ -11,7 +11,7 @@ router.post('/chat', async (req, res, next) => {
 
     const slackEvent = req.body;
 
-    if (req.headers['x-slack-retry-num'] || slackEvent.event.bot_id) return res.status(200).send('OK');
+    if (req.headers['x-slack-retry-num'] || slackEvent?.event?.bot_id) return res.status(200).send('OK');
 
     if ('challenge' in slackEvent) {
         return res.status(200).json({challenge: slackEvent.challenge});
