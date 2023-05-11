@@ -8,7 +8,7 @@ const dotenv = require('dotenv');
 const indexRouter = require('./routes/index');
 
 const app = express();
-app.set('port', process.env.NODE_ENV || 3000);
+app.set('port', process.env.NODE_ENV || 5000);
 
 dotenv.config();
 
