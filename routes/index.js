@@ -23,7 +23,8 @@ router.post('/sheets', async (req, res, next) => {
         };
     });
 
-    let calculateKeywordSimilarity1 = calculateKeywordSimilarity(sheets, testKeywords);
+    let data = calculateKeywordSimilarity(sheets, testKeywords);
+    const mostSimilar = data.reduce((maxObject, object) => object.field > maxObject.field ? object : maxObject);
 
     res.status(200).send('ok');
 });
