@@ -2,10 +2,32 @@ const express = require('express');
 const router = express.Router();
 const axios = require('axios');
 const {WebClient} = require('@slack/web-api');
+const {getSpreadsheetValues} = require("../provider/spreadsheet");
+const {calculateKeywordSimilarity} = require("../provider/levenshtein");
 
 router.get('/', (req, res, next) => {
     res.status(200).send('ok');
 });
+
+router.post('/sheets', async (req, res, next) => {
+    const values = await getSpreadsheetValues('sheetId', 'range');
+
+    const testKeywords = ['키워드1', '키워드2', '키워드3', '키워드4', '키워드5'];
+
+    const sheets = values.map((array) => {
+        return {
+            title: array[0],
+            text: array[1].replace(/\s+/g, ' ').trim(),
+            keywords: array.slice(2, 7),
+            similarity: 0
+        };
+    });
+
+    let calculateKeywordSimilarity1 = calculateKeywordSimilarity(sheets, testKeywords);
+
+    res.status(200).send('ok');
+});
+
 
 router.post('/chat', async (req, res, next) => {
 
